@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Overworld Memory — Sonic Fangame (Prototype)</title>
+  <style>
+    :root{--bg:#0f1226;--card:#11131f;--accent:#ff7a18;--muted:#9aa0c7}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{background:radial-gradient(1200px 600px at 10% 10%, rgba(255,122,24,0.08), transparent),
+                 radial-gradient(1200px 600px at 90% 90%, rgba(63,81,181,0.06), transparent),
+                 var(--bg);color:#e6e9ff;overflow:hidden}
+    canvas{display:block;position:absolute;inset:0;width:100%;height:100%;background:transparent;z-index:0}
+    .container{position:relative;z-index:2;max-width:980px;margin:48px auto;padding:24px;background:rgba(0,0,0,0.3);border-radius:12px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+    h1{font-size:28px;margin:0}
+    p.lead{margin:6px 0 0;color:var(--muted)}
+    .dream-toggle{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:12px;color:var(--muted);cursor:pointer}
+    audio{margin-top:12px;width:100%}
+
+    .level-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:22px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:14px;border-radius:12px;box-shadow:0 6px 22px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    .card h3{margin:0 0 6px}
+    .card p{margin:0 0 10px;color:var(--muted);font-size:14px}
+    .btn{display:inline-block;padding:8px 12px;border-radius:10px;background:var(--accent);color:#111;border:none;cursor:pointer;font-weight:600}
+    .small{font-size:13px;padding:6px 8px;border-radius:8px}
+    footer{margin-top:28px;color:var(--muted);font-size:13px}
+
+    .dreamy{filter:blur(0.6px) saturate(1.1);transform:scale(1.01)}
+    .overlay{position:fixed;inset:0;pointer-events:none;mix-blend-mode:screen}
+
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(2,6,23,0.6), rgba(2,6,23,0.85));z-index:10}
+    .modal.open{display:flex}
+    .modal .box{background:var(--card);padding:18px;border-radius:12px;max-width:720px;width:92%;box-shadow:0 12px 40px rgba(2,6,23,0.7)}
+    .modal .box h2{margin:0 0 8px}
+    .level-meta{display:flex;gap:12px;flex-wrap:wrap}
+    code.k{background:rgba(255,255,255,0.03);padding:6px;border-radius:8px;color:var(--muted)}
+
+    @media (max-width:520px){h1{font-size:20px}}
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div class="overlay"></div>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Overworld Memory</h1>
+        <p class="lead">A Sonic-inspired fangame prototype — you're trapped in an endless dream by Dr. Eggman. Escape by clearing the real levels and confronting the source.</p>
+      </div>
+      <div>
+        <button id="toggleDream" class="dream-toggle">Toggle Dream FX</button>
+      </div>
+    </header>
+
+    <section>
+      <h2 style="margin-top:24px">Levels</h2>
+      <div class="level-grid" id="levels">
+        <article class="card" data-id="orange-memory">
+          <h3>Orange Memory</h3>
+          <p>Bright, looping platforms with quick tempo — test your momentum and timing.</p>
+          <div class="level-meta">
+            <button class="btn" onclick="openPreview('Orange Memory','A bright dreamscape of looping orange platforms and springboards. Hazards: moving saw-arms, memory shards.')">Preview</button>
+            <button class="small" onclick="selectLevel('Orange Memory')">Select</button>
+          </div>
+        </article>
+
+        <article class="card" data-id="acid-moonlit">
+          <h3>Acid Moonlit</h3>
+          <p>Misty platforms over acidic pools — avoid falling and ride the moonlit currents.</p>
+          <div class="level-meta">
+            <button class="btn" onclick="openPreview('Acid Moonlit','A dream stage that glows pale blue under a moon. Platforms drift; acid pools rise periodically.')">Preview</button>
+            <button class="small" onclick="selectLevel('Acid Moonlit')">Select</button>
+          </div>
+        </article>
+
+        <article class="card" data-id="acid-volcano">
+          <h3>Acid Volcano</h3>
+          <p>Volcanic tunnels with acidic steam and moving platforms — extreme hazard choreography.</p>
+          <div class="level-meta">
+            <button class="btn" onclick="openPreview('Acid Volcano','Lava-like acid flows inside a volcano, collapsing bridges and geysers of molten acid.')">Preview</button>
+            <button class="small" onclick="selectLevel('Acid Volcano')">Select</button>
+          </div>
+        </article>
+
+        <article class="card" data-id="escape-1">
+          <h3>Escape</h3>
+          <p>Sequences that test everything you've learned — from platforming to puzzle shortcuts.</p>
+          <div class="level-meta">
+            <button class="btn" onclick="openPreview('Escape','A gauntlet of platforming and puzzle sequences that opens a path toward waking.')">Preview</button>
+            <button class="small" onclick="selectLevel('Escape')">Select</button>
+          </div>
+        </article>
+
+        <article class="card" data-id="escape-2">
+          <h3>Escape (Final)</h3>
+          <p>The final dream gauntlet — timed sections and an Eggman machine looming in the background.</p>
+          <div class="level-meta">
+            <button class="btn" onclick="openPreview('Escape (Final)','The final tense sequence before the real world. Eggman’s device pulses as platforms vanish.')">Preview</button>
+            <button class="small" onclick="selectLevel('Escape (Final)')">Select</button>
+          </div>
+        </article>
+
+        <article class="card" data-id="real-world">
+          <h3>The Real World</h3>
+          <p>Waking stage — free of Eggman's dream interference, but one last confrontation awaits.</p>
+          <div class="level-meta">
+            <button class="btn" onclick="openPreview('The Real World','The world outside the dream — familiar zones with a final Eggman showdown.')">Preview</button>
+            <button class="small" onclick="selectLevel('The Real World')">Select</button>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <section style="margin-top:28px">
+      <h2>Soundtrack & SFX</h2>
+      <audio id="bgm" controls loop>
+        <source src="https://actions.google.com/sounds/v1/ambiences/space_dreamscape.ogg" type="audio/ogg">
+        Your browser does not support the audio element.
+      </audio>
+    </section>
+
+    <footer>
+      <div>Prototype created for design & level listing. This is not an official Sonic game. Use this HTML as a starting point for building levels, adding audio, and connecting to your engine.</div>
+    </footer>
+  </div>
+
+  <div id="modal" class="modal" role="dialog" aria-hidden="true">
+    <div class="box">
+      <button style="float:right;padding:6px 10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);" onclick="closeModal()">Close</button>
+      <h2 id="modalTitle">Level Preview</h2>
+      <p id="modalDesc" style="margin-top:6px;color:var(--muted)"></p>
+      <div style="margin-top:12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="mockPlay()">Play (Mock)</button>
+          <button class="small" onclick="markFavorite()">Mark Favorite</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const body = document.body;
+    const toggle = document.getElementById('toggleDream');
+    const modal = document.getElementById('modal');
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let keys = {}, player={x:100,y:100,vx:0,vy:0,size:32,onGround:false};
+
+    function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+    resize();window.addEventListener('resize',resize);
+
+    function gameLoop(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // background gradient
+      const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+      grad.addColorStop(0,'#1e2147');grad.addColorStop(1,'#0a0b1f');
+      ctx.fillStyle=grad;ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // simple floor
+      ctx.fillStyle='#333c60';
+      ctx.fillRect(0,canvas.height-60,canvas.width,60);
+
+      // player physics
+      player.vy += 0.6; // gravity
+      player.x += player.vx;
+      player.y += player.vy;
+      if(player.y + player.size > canvas.height-60){player.y = canvas.height-60-player.size;player.vy=0;player.onGround=true;}
+      else player.onGround=false;
+
+      // draw player
+      ctx.fillStyle='#ff7a18';
+      ctx.fillRect(player.x,player.y,player.size,player.size);
+
+      requestAnimationFrame(gameLoop);
+    }
+    requestAnimationFrame(gameLoop);
+
+    window.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key===' '&&player.onGround){player.vy=-12;}});
+    window.addEventListener('keyup',e=>{keys[e.key]=false;});
+
+    function handleInput(){
+      if(keys['ArrowLeft']) player.vx=-5;
+      else if(keys['ArrowRight']) player.vx=5;
+      else player.vx=0;
+      requestAnimationFrame(handleInput);
+    }
+    handleInput();
+
+    toggle.addEventListener('click', ()=>{
+      body.classList.toggle('dreamy');
+      toggle.textContent = body.classList.contains('dreamy') ? 'Dream FX: ON' : 'Toggle Dream FX';
+    });
+
+    function openPreview(title,desc){
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalDesc').textContent = desc;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden','false');
+    }
+    function closeModal(){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');}
+
+    function selectLevel(name){alert('Selected level: '+name+'\n\nIn a real build this would load the level data and transition into the engine.');}
+    function mockPlay(){alert('Starting mock play... (prototype)');}
+    function markFavorite(){alert('Marked as favorite — saved locally.');}
+
+    window.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeModal();if(e.key.toLowerCase()==='d'){body.classList.toggle('dreamy');toggle.textContent=body.classList.contains('dreamy')?'Dream FX: ON':'Toggle Dream FX';}});
+
+    document.addEventListener('DOMContentLoaded',()=>{const firstBtn=document.querySelector('.btn');if(firstBtn)firstBtn.focus();});
+  </script>
+</body>
+</html>
