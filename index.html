@@ -1,181 +1,150 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Overworld Memory — Full Prototype (Playable Levels)</title>
-  <style>
-    :root{--bg:#0f1226;--card:#0f1226aa;--accent:#ff7a18;--muted:#b7bddf}
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6e9ff}
-    #gameWrap{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center}
-    canvas{background:transparent;display:block;max-width:100%;height:100vh}
-    .ui{position:fixed;z-index:40;left:20px;top:20px;min-width:320px;max-width:420px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
-    h1{margin:0;font-size:18px}
-    p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
-    .levels{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-    .levBtn{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);cursor:pointer;font-weight:600;color:#fff}
-    .controls{display:flex;gap:8px;margin-top:8px}
-    .small{font-size:12px;padding:6px 8px;border-radius:8px}
-    .audioRow{margin-top:10px}
-    .hud{position:fixed;right:20px;top:20px;color:var(--muted);z-index:40;text-align:right}
-    .overlayMsg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50;pointer-events:none}
-    .messageBox{background:rgba(2,6,23,0.8);padding:18px;border-radius:12px;color:#fff;border:1px solid rgba(255,255,255,0.04)}
-    .mobileButtons{position:fixed;left:16px;bottom:20px;z-index:40;display:flex;gap:8px}
-    .touchBtn{width:64px;height:64px;border-radius:12px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;font-weight:700}
-    footer{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;color:var(--muted);font-size:12px}
-    @media (max-width:640px){.ui{left:10px;right:10px;top:10px;min-width:auto}}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Overworld Memory — Final Version</title>
+<style>
+  :root{--bg:#0f1226;--accent:#ff7a18;--muted:#b7bddf}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6e9ff}
+  #gameWrap{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center}
+  canvas{background:transparent;display:block;max-width:100%;height:100vh}
+  .ui{position:fixed;z-index:40;left:20px;top:20px;min-width:320px;max-width:420px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+  h1{margin:0;font-size:18px}
+  p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+  .levels{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .levBtn{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);cursor:pointer;font-weight:600;color:#fff}
+  .controls{display:flex;gap:8px;margin-top:8px}
+  .small{font-size:12px;padding:6px 8px;border-radius:8px}
+  .audioRow{margin-top:10px}
+  .hud{position:fixed;right:20px;top:20px;color:var(--muted);z-index:40;text-align:right}
+  .overlayMsg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50;pointer-events:none}
+  .messageBox{background:rgba(2,6,23,0.8);padding:18px;border-radius:12px;color:#fff;border:1px solid rgba(255,255,255,0.04)}
+  footer{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;color:var(--muted);font-size:12px}
+</style>
 </head>
 <body>
-  <div id="gameWrap">
-    <canvas id="gameCanvas"></canvas>
-  </div>
+<div id="gameWrap"><canvas id="gameCanvas"></canvas></div>
 
-  <div class="ui" id="menu">
-    <h1>Overworld Memory — Full Prototype</h1>
-    <p class="lead">Genesis-style Sonic sprite (animated, local asset). Use ← → or A/D to move, Space to jump. Hold Down/↓ to roll (momentum increase).</p>
+<div class="ui" id="menu">
+<h1>Overworld Memory — Final Version</h1>
+<p class="lead">Use ← → or A/D to move, Space to jump. Hold Down/↓ to roll. Runs your 6-frame Sonic sprite.</p>
 
-    <div style="margin-top:10px">
-      <strong>Levels</strong>
-      <div class="levels" id="levelsList"></div>
-    </div>
+<div style="margin-top:10px">
+  <strong>Levels</strong>
+  <div class="levels" id="levelsList"></div>
+</div>
 
-    <div style="margin-top:8px" class="audioRow">
-      <label for="bgm">BGM:</label>
-      <audio id="bgm" controls loop>
-        <source src="https://actions.google.com/sounds/v1/ambiences/space_dreamscape.ogg" type="audio/ogg">
-      </audio>
-    </div>
+<div class="controls">
+  <button class="levBtn" id="startBtn">Start Selected</button>
+</div>
+</div>
 
-    <div style="margin-top:10px">
-      <label for="spriteUrl">Sprite sheet URL (optional):</label>
-      <input id="spriteUrl" style="width:100%;margin-top:6px;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff" placeholder="Paste a sprite-sheet URL (optional)" />
-      <div style="margin-top:6px;display:flex;gap:6px">
-        <button id="applySprite" class="levBtn small">Apply Sprite URL</button>
-        <button id="resetSprite" class="levBtn small">Reset to default</button>
-      </div>
-    </div>
+<div class="hud" id="hud">Level: <span id="hudLevel">—</span><br>Rings: <span id="hudRings">0</span></div>
 
-    <div class="controls">
-      <button class="levBtn" id="startBtn">Start Selected</button>
-      <button class="levBtn small" id="toggleFx">Toggle Dream FX</button>
-      <button class="levBtn small" id="resetBtn">Reset Level</button>
-    </div>
-  </div>
+<footer>Overworld Memory — Full Version</footer>
 
-  <div class="hud" id="hud">Level: <span id="hudLevel">—</span><br>Rings: <span id="hudRings">0</span></div>
+<script>
+window.onload=()=>{
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+function resize(){canvas.width=Math.min(window.innerWidth,1280);canvas.height=window.innerHeight;} window.addEventListener('resize',resize); resize();
 
-  <div class="overlayMsg" id="overlay" style="display:none"><div class="messageBox" id="overlayBox">Paused</div></div>
+const PLAYER_SPRITE_URL='https://i.imgur.com/jYfFMhH.jpeg';
+const spriteImg=new Image(); spriteImg.src=PLAYER_SPRITE_URL;
 
-  <div class="mobileButtons" id="mobileBtns" style="display:none">
-    <div class="touchBtn" id="leftBtn">◀</div>
-    <div class="touchBtn" id="rightBtn">▶</div>
-    <div class="touchBtn" id="jumpBtn">⭣</div>
-  </div>
+// Levels
+const LEVELS=[
+  {id:'orange-memory',title:'Orange Memory',bgColor:'#ffeddc',platforms:[{x:0,y:420,w:800,h:60},{x:220,y:340,w:140,h:20},{x:420,y:280,w:120,h:20},{x:620,y:220,w:100,h:20},{x:820,y:340,w:140,h:20}],hazards:[],portal:{x:900,y:160,w:40,h:40}},
+  {id:'acid-moonlit',title:'Acid Moonlit',bgColor:'#dcefff',platforms:[{x:0,y:420,w:700,h:60},{x:360,y:320,w:120,h:20},{x:520,y:260,w:120,h:20},{x:760,y:320,w:180,h:20}],hazards:[{x:140,y:460,w:120,h:20,type:'acid'}],portal:{x:920,y:260,w:40,h:40}},
+  {id:'acid-volcano',title:'Acid Volcano',bgColor:'#fff0e6',platforms:[{x:0,y:420,w:600,h:60},{x:320,y:340,w:120,h:20},{x:520,y:300,w:120,h:20},{x:720,y:260,w:120,h:20}],hazards:[{x:680,y:460,w:160,h:20,type:'lava'},{x:420,y:460,w:120,h:20,type:'lava'}],portal:{x:860,y:200,w:40,h:40}},
+  {id:'escape',title:'Escape',bgColor:'#f6e6ff',platforms:[{x:0,y:420,w:500,h:60},{x:540,y:360,w:120,h:20},{x:720,y:300,w:120,h:20},{x:900,y:240,w:120,h:20}],hazards:[{x:200,y:440,w:120,h:20,type:'spikes'}],portal:{x:1040,y:180,w:40,h:40}},
+  {id:'escape-final',title:'Escape (Final)',bgColor:'#eef6ff',platforms:[{x:0,y:420,w:360,h:60},{x:420,y:360,w:120,h:20},{x:600,y:300,w:100,h:20},{x:760,y:260,w:80,h:20}],hazards:[{x:300,y:460,w:200,h:20,type:'moving',vx:1}],portal:{x:920,y:220,w:64,h:64}},
+  {id:'real-world',title:'The Real World',bgColor:'#eafff5',platforms:[{x:0,y:420,w:1200,h:60}],hazards:[],portal:{x:1100,y:200,w:80,h:80}}
+];
 
-  <footer>Prototype — not an official Sonic game. Use for testing levels and mechanics.</footer>
+// Player
+const player={x:80,y:0,w:64,h:64,vx:0,vy:0,acc:0.8,maxSpeed:12,friction:0.85,onGround:false,rolling:false,rings:0,anim:{frame:0,frameTimer:0,frameRate:8}};
 
-  <script>
-    window.onload = () => {
-      // ------------------------
-      // Sprite config
-      // ------------------------
-      let PLAYER_SPRITE_URL = './assets/sonic.png';
-      const SPRITE_FRAME = { frameW:64, frameH:64, rows:{idle:0, run:0, jump:0, roll:0}, counts:{idle:1, run:6, jump:1, roll:1} };
-      const spriteImg = new Image();
-      spriteImg.onload = ()=>console.log('Local player sprite loaded');
-      spriteImg.onerror = ()=>console.warn('Failed to load local sprite');
-      spriteImg.src = PLAYER_SPRITE_URL;
+const keys={}; window.addEventListener('keydown',e=>keys[e.key]=true); window.addEventListener('keyup',e=>keys[e.key]=false);
 
-      // ------------------------
-      // Level data
-      // ------------------------
-      const LEVELS = [
-        {id:'orange-memory',title:'Orange Memory',bgColor:'#ffeddc',platforms:[{x:0,y:420,w:800,h:60},{x:220,y:340,w:140,h:20},{x:420,y:280,w:120,h:20},{x:620,y:220,w:100,h:20},{x:820,y:340,w:140,h:20}],hazards:[],portal:{x:900,y:160,w:40,h:40}},
-        {id:'acid-moonlit',title:'Acid Moonlit',bgColor:'#dcefff',platforms:[{x:0,y:420,w:700,h:60},{x:360,y:320,w:120,h:20},{x:520,y:260,w:120,h:20},{x:760,y:320,w:180,h:20}],hazards:[{x:140,y:460,w:120,h:20,type:'acid'}],portal:{x:920,y:260,w:40,h:40}},
-        {id:'acid-volcano',title:'Acid Volcano',bgColor:'#fff0e6',platforms:[{x:0,y:420,w:600,h:60},{x:320,y:340,w:120,h:20},{x:520,y:300,w:120,h:20},{x:720,y:260,w:120,h:20}],hazards:[{x:680,y:460,w:160,h:20,type:'lava'},{x:420,y:460,w:120,h:20,type:'lava'}],portal:{x:860,y:200,w:40,h:40}},
-        {id:'escape',title:'Escape',bgColor:'#f6e6ff',platforms:[{x:0,y:420,w:500,h:60},{x:540,y:360,w:120,h:20},{x:720,y:300,w:120,h:20},{x:900,y:240,w:120,h:20}],hazards:[{x:200,y:440,w:120,h:20,type:'spikes'}],portal:{x:1040,y:180,w:40,h:40}},
-        {id:'escape-final',title:'Escape (Final)',bgColor:'#eef6ff',platforms:[{x:0,y:420,w:360,h:60},{x:420,y:360,w:120,h:20},{x:600,y:300,w:100,h:20},{x:760,y:260,w:80,h:20}],hazards:[{x:300,y:460,w:200,h:20,type:'moving',vx:1}],portal:{x:920,y:220,w:64,h:64}},
-        {id:'real-world',title:'The Real World',bgColor:'#eafff5',platforms:[{x:0,y:420,w:1200,h:60}],hazards:[],portal:{x:1100,y:200,w:80,h:80}}
-      ];
+// State
+let state={currentLevel:null,offsetX:0,playing:false};
+let selectedLevel=LEVELS[0].id;
 
-      // ------------------------
-      // Canvas and state
-      // ------------------------
-      const canvas=document.getElementById('gameCanvas');
-      const ctx=canvas.getContext('2d');
-      let scale=1;
-      function resize(){ canvas.width=Math.min(window.innerWidth,1280); canvas.height=window.innerHeight; scale=canvas.height/720; } window.addEventListener('resize',resize); resize();
-      let state={currentLevel:null,offsetX:0,playing:false,dreamFX:false};
+// Populate level buttons
+const levelsList=document.getElementById('levelsList');
+LEVELS.forEach(l=>{
+  const btn=document.createElement('button');
+  btn.className='levBtn';
+  btn.textContent=l.title;
+  btn.onclick=()=>{selectedLevel=l.id; document.getElementById('startBtn').textContent='Start: '+l.title;}
+  levelsList.appendChild(btn);
+});
+document.getElementById('startBtn').addEventListener('click',()=>{ loadLevel(selectedLevel); });
 
-      // ------------------------
-      // Player
-      // ------------------------
-      const player={x:80,y:0,w:40,h:40,vx:0,vy:0,acc:0.8,maxSpeed:12,friction:0.85,onGround:false,rolling:false,rings:0,anim:{state:'run',frame:0,frameTimer:0,frameRate:12}};
-      const keys={}; window.addEventListener('keydown',e=>keys[e.key]=true); window.addEventListener('keyup',e=>keys[e.key]=false);
+// Load level
+function loadLevel(id){
+  const lvl=LEVELS.find(l=>l.id===id); if(!lvl) return;
+  state.currentLevel=JSON.parse(JSON.stringify(lvl));
+  player.x=80; player.y=0; player.vx=0; player.vy=0; player.rings=0;
+  state.offsetX=0; state.playing=true;
+  document.getElementById('hudLevel').textContent=lvl.title;
+}
 
-      // ------------------------
-      // Levels menu buttons
-      // ------------------------
-      const levelsList=document.getElementById('levelsList');
-      LEVELS.forEach(l=>{
-        const btn=document.createElement('button');
-        btn.className='levBtn';
-        btn.textContent=l.title;
-        btn.onclick=()=>selectLevel(l.id);
-        levelsList.appendChild(btn);
-      });
-      window.selectedLevel=LEVELS[0].id;
-      document.getElementById('startBtn').textContent='Start: '+LEVELS[0].title;
+// Game loop
+function gameLoop(){ update(); draw(); requestAnimationFrame(gameLoop); }
+function update(){
+  if(!state.playing||!state.currentLevel) return;
+  const lvl=state.currentLevel;
+  player.vy+=0.8;
+  const left=keys['ArrowLeft']||keys['a']||keys['A'];
+  const right=keys['ArrowRight']||keys['d']||keys['D'];
+  const down=keys['ArrowDown']||keys['s']||keys['S'];
+  player.rolling=down&&player.onGround;
+  const accel=player.rolling?player.acc*1.3:player.acc;
+  const friction=player.rolling?0.95:0.85;
+  if(left) player.vx-=accel; if(right) player.vx+=accel;
+  if(!left&&!right) player.vx*=friction;
+  if(Math.abs(player.vx)>player.maxSpeed) player.vx=Math.sign(player.vx)*player.maxSpeed;
+  if((keys[' ']||keys['Spacebar']||keys['Space'])&&player.onGround){ player.vy=-14; player.onGround=false; }
+  player.x+=player.vx; player.y+=player.vy; player.onGround=false;
 
-      function selectLevel(id){ window.selectedLevel=id; const lvl=LEVELS.find(l=>l.id===id); if(lvl) document.getElementById('startBtn').textContent='Start: '+lvl.title; }
-      document.getElementById('startBtn').addEventListener('click',()=>{ if(window.selectedLevel) loadLevel(window.selectedLevel); });
+  lvl.platforms.forEach(p=>{
+    const plat={x:p.x-state.offsetX,y:p.y,w:p.w,h:p.h};
+    if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h},plat)){
+      if(player.vy>0 && player.y+player.h-player.vy<=plat.y+4){ player.y=plat.y-player.h; player.vy=0; player.onGround=true; }
+      else{ if(player.x<plat.x) player.x=plat.x-player.w; else player.x=plat.x+plat.w; player.vx*=-0.2; }
+    }
+  });
 
-      // ------------------------
-      // Load level function
-      // ------------------------
-      function loadLevel(id){
-        const lvl = LEVELS.find(l=>l.id===id);
-        if(!lvl) return;
-        state.currentLevel = JSON.parse(JSON.stringify(lvl));
-        player.x=80; player.y=0; player.vx=0; player.vy=0; player.rings=0;
-        state.offsetX=0; state.playing=true;
-        document.getElementById('hudLevel').textContent=lvl.title;
-      }
+  const portal={x:lvl.portal.x-state.offsetX,y:lvl.portal.y,w:lvl.portal.w,h:lvl.portal.h};
+  if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h},portal)){
+    const idx=LEVELS.findIndex(x=>x.id===lvl.id); if(idx<LEVELS.length-1) loadLevel(LEVELS[idx+1].id); else showMessage('You escaped the dream!');
+  }
+  state.offsetX=Math.max(0,player.x-canvas.width/2+100);
+  document.getElementById('hudRings').textContent=player.rings;
+}
 
-      // ------------------------
-      // Main loop
-      // ------------------------
-      function gameLoop(){ update(); draw(); requestAnimationFrame(gameLoop); }
-      function update(){
-        if(!state.playing||!state.currentLevel) return;
-        const lvl=state.currentLevel;
-        player.vy+=0.8;
-        const left=keys['ArrowLeft']||keys['a']||keys['A'];
-        const right=keys['ArrowRight']||keys['d']||keys['D'];
-        const down=keys['ArrowDown']||keys['s']||keys['S'];
-        player.rolling=down&&player.onGround;
-        const accel=player.rolling?player.acc*1.3:player.acc;
-        const friction=player.rolling?0.95:0.85;
-        if(left) player.vx-=accel;
-        if(right) player.vx+=accel;
-        if(!left&&!right) player.vx*=friction;
-        if(Math.abs(player.vx)>player.maxSpeed) player.vx=Math.sign(player.vx)*player.maxSpeed;
-        if((keys[' ']||keys['Spacebar']||keys['Space']) && player.onGround){ player.vy=-14; player.onGround=false; }
-        player.x+=player.vx; player.y+=player.vy;
-        player.onGround=false;
-        lvl.platforms.forEach(p=>{ const plat={x:p.x-state.offsetX,y:p.y,w:p.w,h:p.h}; if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h},plat)){ if(player.vy>0 && player.y+player.h-player.vy<=plat.y+4){ player.y=plat.y-player.h; player.vy=0; player.onGround=true; } else { if(player.x<plat.x) player.x=plat.x-player.w; else player.x=plat.x+plat.w; player.vx*=-0.2; } } });
-        const portal={x:lvl.portal.x-state.offsetX,y:lvl.portal.y,w:lvl.portal.w,h:lvl.portal.h};
-        if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h},portal)){ const idx=LEVELS.findIndex(x=>x.id===lvl.id); if(idx<LEVELS.length-1) loadLevel(LEVELS[idx+1].id); else showMessage('You escaped the dream!'); }
-        state.offsetX=Math.max(0,player.x-canvas.width/2+100);
-        document.getElementById('hudRings').textContent=player.rings;
-      }
-      function draw(){ ctx.clearRect(0,0,canvas.width,canvas.height); if(state.currentLevel){ const lvl=state.currentLevel; ctx.fillStyle=lvl.bgColor||'#111'; ctx.fillRect(0,0,canvas.width,canvas.height); lvl.platforms.forEach(p=>{ ctx.fillStyle='#222'; ctx.fillRect(p.x-state.offsetX,p.y,p.w,p.h); }); const portal=lvl.portal; ctx.fillStyle='#ffcc00'; ctx.fillRect(portal.x-state.offsetX,portal.y,portal.w,portal.h); ctx.fillStyle='red'; ctx.fillRect(player.x,player.y,player.w,player.h); }}
-      function rectsIntersect(a,b){ return a.x<a.x+b.w && a.x+a.w>b.x && a.y<a.y+b.h && a.y+a.h>b.y; }
-      gameLoop();
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!state.playing||!state.currentLevel) return;
+  const lvl=state.currentLevel;
+  ctx.fillStyle=lvl.bgColor||'#111';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  lvl.platforms.forEach(p=>{ ctx.fillStyle='#222'; ctx.fillRect(p.x-state.offsetX,p.y,p.w,p.h); });
+  const portal=lvl.portal; ctx.fillStyle='#ffcc00'; ctx.fillRect(portal.x-state.offsetX,portal.y,portal.w,portal.h);
 
-      function showMessage(msg){ const overlay=document.getElementById('overlay'); overlay.style.display='flex'; document.getElementById('overlayBox').textContent=msg; setTimeout(()=>{overlay.style.display='none'},2000); }
-    };
-  </script>
+  // Draw player (sprite sheet)
+  const frameWidth=64; const frameHeight=64;
+  player.anim.frameTimer++; if(player.anim.frameTimer>=player.anim.frameRate){ player.anim.frameTimer=0; player.anim.frame=(player.anim.frame+1)%6; }
+  ctx.drawImage(spriteImg,player.anim.frame*frameWidth,0,frameWidth,frameHeight,player.x,player.y,player.w,player.h);
+}
+
+function rectsIntersect(a,b){ return a.x<a.x+b.w && a.x+a.w>b.x && a.y<a.y+b.h && a.y+a.h>b.y; }
+function showMessage(msg){ const overlay=document.createElement('div'); overlay.style.position='fixed'; overlay.style.inset='0'; overlay.style.background='rgba(0,0,0,0.5)'; overlay.style.display='flex'; overlay.style.alignItems='center'; overlay.style.justifyContent='center'; overlay.style.zIndex='50'; const box=document.createElement('div'); box.style.background='#222'; box.style.padding='16px'; box.style.borderRadius='12px'; box.style.color='#fff'; box.textContent=msg; overlay.appendChild(box); document.body.appendChild(overlay); setTimeout(()=>{document.body.removeChild(overlay)},2000);}
+gameLoop();
+};
+</script>
 </body>
 </html>
