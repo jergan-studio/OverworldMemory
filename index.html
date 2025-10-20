@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Overworld Memory — Full Prototype</title>
+  <title>Overworld Memory — Full Prototype (Genesis Sonic)</title>
   <style>
     :root{--bg:#0f1226;--card:#0f1226aa;--accent:#ff7a18;--muted:#b7bddf}
     html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6e9ff}
@@ -33,7 +33,7 @@
 
   <div class="ui" id="menu">
     <h1>Overworld Memory — Full Prototype</h1>
-    <p class="lead">You're trapped in a dream created by Dr. Eggman. Use ← → or A/D to move, Space to jump. Hold Down/↓ to roll (increases momentum).</p>
+    <p class="lead">Genesis-style Sonic sprite (animated). Use ← → or A/D to move, Space to jump. Hold Down/↓ to roll (increases momentum).</p>
 
     <div style="margin-top:10px">
       <strong>Levels</strong>
@@ -45,6 +45,15 @@
       <audio id="bgm" controls loop>
         <source src="https://actions.google.com/sounds/v1/ambiences/space_dreamscape.ogg" type="audio/ogg">
       </audio>
+    </div>
+
+    <div style="margin-top:10px">
+      <label for="spriteUrl">Sprite sheet URL (optional):</label>
+      <input id="spriteUrl" style="width:100%;margin-top:6px;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff" placeholder="Paste a sprite-sheet URL (optional)" />
+      <div style="margin-top:6px;display:flex;gap:6px">
+        <button id="applySprite" class="levBtn small">Apply Sprite URL</button>
+        <button id="resetSprite" class="levBtn small">Reset to default</button>
+      </div>
     </div>
 
     <div class="controls">
@@ -68,285 +77,161 @@
 
   <script>
     // ------------------------
-    // Level data (JSON-style objects)
+    // Sprite configuration
     // ------------------------
-    const LEVELS = [
-      {
-        id: 'orange-memory', title: 'Orange Memory', theme: 'orange', bgColor: '#ffeddc',
-        backgroundImage: null,
-        platforms: [
-          {x:0,y:420,w:800,h:60},
-          {x:220,y:340,w:140,h:20},
-          {x:420,y:280,w:120,h:20},
-          {x:620,y:220,w:100,h:20},
-          {x:820,y:340,w:140,h:20}
-        ],
-        hazards: [],
-        portal:{x:900,y:160,w:40,h:40}
-      },
+    // Default placeholder sprite-sheet URL (replaceable). If CORS blocks loading from some hosts, use a CORS-enabled host
+    let PLAYER_SPRITE_URL = 'https://raw.githubusercontent.com/jessefreeman/joy/master/assets/sonic.png'; // placeholder (replace if broken)
 
-      {
-        id: 'acid-moonlit', title: 'Acid Moonlit', theme: 'blue', bgColor: '#dcefff',
-        backgroundImage: null,
-        platforms: [
-          {x:0,y:420,w:700,h:60},{x:360,y:320,w:120,h:20},{x:520,y:260,w:120,h:20},{x:760,y:320,w:180,h:20}
-        ],
-        hazards: [{x:140,y:460,w:120,h:20,type:'acid'}],
-        portal:{x:920,y:260,w:40,h:40}
-      },
+    // sprite frame layout assumptions (you can change these if using a different sheet):
+    // Frames are organized in rows: idle (0..1), run (0..5), jump (0), roll (0..3)
+    const SPRITE_FRAME = {
+      frameW: 64, frameH: 64,
+      rows: {idle:0, run:1, jump:2, roll:3},
+      counts: {idle:2, run:6, jump:1, roll:4}
+    };
 
-      {
-        id: 'acid-volcano', title: 'Acid Volcano', theme: 'red', bgColor: '#fff0e6',
-        backgroundImage: null,
-        platforms: [
-          {x:0,y:420,w:600,h:60},{x:320,y:340,w:120,h:20},{x:520,y:300,w:120,h:20},{x:720,y:260,w:120,h:20}
-        ],
-        hazards: [{x:680,y:460,w:160,h:20,type:'lava'},{x:420,y:460,w:120,h:20,type:'lava'}],
-        portal:{x:860,y:200,w:40,h:40}
-      },
+    const spriteImg = new Image();
+    let spriteLoaded = false;
+    spriteImg.crossOrigin = 'anonymous';
+    spriteImg.onload = ()=>{ spriteLoaded = true; console.log('Player sprite loaded'); };
+    spriteImg.onerror = ()=>{ spriteLoaded = false; console.warn('Player sprite failed to load — using fallback art'); };
+    spriteImg.src = PLAYER_SPRITE_URL;
 
-      {
-        id: 'escape', title: 'Escape', theme: 'purple', bgColor: '#f6e6ff',
-        backgroundImage: null,
-        platforms: [
-          {x:0,y:420,w:500,h:60},{x:540,y:360,w:120,h:20},{x:720,y:300,w:120,h:20},{x:900,y:240,w:120,h:20}
-        ],
-        hazards: [{x:200,y:440,w:120,h:20,type:'spikes'}],
-        portal:{x:1040,y:180,w:40,h:40}
-      },
-
-      {
-        id: 'escape-final', title: 'Escape (Final)', theme: 'storm', bgColor: '#eef6ff',
-        backgroundImage: null,
-        platforms: [
-          {x:0,y:420,w:360,h:60},{x:420,y:360,w:120,h:20},{x:600,y:300,w:100,h:20},{x:760,y:260,w:80,h:20}
-        ],
-        hazards: [{x:300,y:460,w:200,h:20,type:'moving',vx:1}],
-        portal:{x:920,y:220,w:64,h:64}
-      },
-
-      {
-        id: 'real-world', title: 'The Real World', theme: 'real', bgColor: '#eafff5',
-        backgroundImage: null,
-        platforms: [
-          {x:0,y:420,w:1200,h:60}
-        ],
-        hazards: [],
-        portal:{x:1100,y:200,w:80,h:80}
-      }
+    // ------------------------
+    // Level data (same as before)
+    // ------------------------
+    const LEVELS = [ /* same levels as before */
+      {id:'orange-memory',title:'Orange Memory',theme:'orange',bgColor:'#ffeddc',platforms:[{x:0,y:420,w:800,h:60},{x:220,y:340,w:140,h:20},{x:420,y:280,w:120,h:20},{x:620,y:220,w:100,h:20},{x:820,y:340,w:140,h:20}],hazards:[],portal:{x:900,y:160,w:40,h:40}},
+      {id:'acid-moonlit',title:'Acid Moonlit',theme:'blue',bgColor:'#dcefff',platforms:[{x:0,y:420,w:700,h:60},{x:360,y:320,w:120,h:20},{x:520,y:260,w:120,h:20},{x:760,y:320,w:180,h:20}],hazards:[{x:140,y:460,w:120,h:20,type:'acid'}],portal:{x:920,y:260,w:40,h:40}},
+      {id:'acid-volcano',title:'Acid Volcano',theme:'red',bgColor:'#fff0e6',platforms:[{x:0,y:420,w:600,h:60},{x:320,y:340,w:120,h:20},{x:520,y:300,w:120,h:20},{x:720,y:260,w:120,h:20}],hazards:[{x:680,y:460,w:160,h:20,type:'lava'},{x:420,y:460,w:120,h:20,type:'lava'}],portal:{x:860,y:200,w:40,h:40}},
+      {id:'escape',title:'Escape',theme:'purple',bgColor:'#f6e6ff',platforms:[{x:0,y:420,w:500,h:60},{x:540,y:360,w:120,h:20},{x:720,y:300,w:120,h:20},{x:900,y:240,w:120,h:20}],hazards:[{x:200,y:440,w:120,h:20,type:'spikes'}],portal:{x:1040,y:180,w:40,h:40}},
+      {id:'escape-final',title:'Escape (Final)',theme:'storm',bgColor:'#eef6ff',platforms:[{x:0,y:420,w:360,h:60},{x:420,y:360,w:120,h:20},{x:600,y:300,w:100,h:20},{x:760,y:260,w:80,h:20}],hazards:[{x:300,y:460,w:200,h:20,type:'moving',vx:1}],portal:{x:920,y:220,w:64,h:64}},
+      {id:'real-world',title:'The Real World',theme:'real',bgColor:'#eafff5',platforms:[{x:0,y:420,w:1200,h:60}],hazards:[],portal:{x:1100,y:200,w:80,h:80}}
     ];
 
     // ------------------------
-    // Canvas + high-level state
+    // Canvas + state
     // ------------------------
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     let scale = 1;
-    function resize(){
-      canvas.width = Math.min(window.innerWidth, 1280);
-      canvas.height = window.innerHeight;
-      scale = canvas.height / 720; // use 720p baseline
-    }
+    function resize(){ canvas.width = Math.min(window.innerWidth,1280); canvas.height = window.innerHeight; scale = canvas.height/720; }
     window.addEventListener('resize', resize); resize();
 
-    let state = {
-      currentLevel: null,
-      offsetX: 0,
-      playing: false,
-      dreamFX: false,
-    };
+    let state = { currentLevel:null, offsetX:0, playing:false, dreamFX:false };
 
     // ------------------------
-    // Player — momentum-based
+    // Player — with animation state
     // ------------------------
-    const player = {
-      x: 80, y: 0, w: 40, h: 40,
-      vx:0, vy:0,
-      acc: 0.8, maxSpeed: 12, friction: 0.85, onGround:false, rolling:false,
-      rings:0
+    const player = { x:80,y:0,w:40,h:40,vx:0,vy:0,acc:0.8,maxSpeed:12,friction:0.85,onGround:false,rolling:false,rings:0,
+      anim:{state:'idle',frame:0,frameTimer:0,frameRate:8}
     };
 
-    // input
     const keys = {};
-    window.addEventListener('keydown', e=>{keys[e.key]=true; if(e.key==='p'){togglePause()} });
-    window.addEventListener('keyup', e=>{keys[e.key]=false});
+    window.addEventListener('keydown', e=>{ keys[e.key]=true; if(e.key==='p'){ togglePause(); } });
+    window.addEventListener('keyup', e=>{ keys[e.key]=false; });
 
-    // mobile touch buttons
-    const mobileBtns = document.getElementById('mobileBtns');
-    function detectMobile(){ if(/Mobi|Android/i.test(navigator.userAgent)) mobileBtns.style.display='flex'; }
-    detectMobile();
+    // mobile buttons
+    const mobileBtns = document.getElementById('mobileBtns'); if(/Mobi|Android/i.test(navigator.userAgent)) mobileBtns.style.display='flex';
     document.getElementById('leftBtn').addEventListener('touchstart', ()=>keys['ArrowLeft']=true);document.getElementById('leftBtn').addEventListener('touchend', ()=>keys['ArrowLeft']=false);
     document.getElementById('rightBtn').addEventListener('touchstart', ()=>keys['ArrowRight']=true);document.getElementById('rightBtn').addEventListener('touchend', ()=>keys['ArrowRight']=false);
-    document.getElementById('jumpBtn').addEventListener('touchstart', ()=>{ if(player.onGround) player.vy=-14;});
+    document.getElementById('jumpBtn').addEventListener('touchstart', ()=>{ if(player.onGround) player.vy=-14; });
 
     // ------------------------
-    // Level loader & renderer
+    // Level loader
     // ------------------------
-    function loadLevel(id){
-      const lvl = LEVELS.find(l=>l.id===id);
-      if(!lvl) return;
-      state.currentLevel = JSON.parse(JSON.stringify(lvl)); // clone
-      player.x = 80; player.y = 0; player.vx = 0; player.vy = 0; player.rings = 0;
-      state.offsetX = 0; state.playing = true; document.getElementById('hudLevel').textContent = lvl.title;
-    }
+    function loadLevel(id){ const lvl = LEVELS.find(l=>l.id===id); if(!lvl) return; state.currentLevel = JSON.parse(JSON.stringify(lvl)); player.x=80;player.y=0;player.vx=0;player.vy=0;player.rings=0; state.offsetX=0; state.playing=true; document.getElementById('hudLevel').textContent = lvl.title; }
 
-    // UI populate
-    const levelsList = document.getElementById('levelsList');
-    LEVELS.forEach(l=>{
-      const btn = document.createElement('button'); btn.className='levBtn'; btn.textContent = l.title; btn.onclick=()=>selectLevel(l.id); levelsList.appendChild(btn);
-    });
-    function selectLevel(id){ window.selectedLevel = id; document.getElementById('startBtn').textContent = 'Start: ' + LEVELS.find(x=>x.id===id).title; }
-    // default select first
-    selectLevel(LEVELS[0].id);
-
-    document.getElementById('startBtn').addEventListener('click', ()=>{
-      if(window.selectedLevel) loadLevel(window.selectedLevel);
-    });
-    document.getElementById('toggleFx').addEventListener('click', ()=>{state.dreamFX = !state.dreamFX;document.body.style.filter = state.dreamFX ? 'saturate(1.2) blur(0.6px)' : 'none';});
+    const levelsList = document.getElementById('levelsList'); LEVELS.forEach(l=>{ const btn=document.createElement('button'); btn.className='levBtn'; btn.textContent=l.title; btn.onclick=()=>selectLevel(l.id); levelsList.appendChild(btn); }); function selectLevel(id){ window.selectedLevel=id; document.getElementById('startBtn').textContent='Start: '+LEVELS.find(x=>x.id===id).title; } selectLevel(LEVELS[0].id);
+    document.getElementById('startBtn').addEventListener('click', ()=>{ if(window.selectedLevel) loadLevel(window.selectedLevel); });
+    document.getElementById('toggleFx').addEventListener('click', ()=>{ state.dreamFX = !state.dreamFX; document.body.style.filter = state.dreamFX ? 'saturate(1.2) blur(0.6px)' : 'none'; });
     document.getElementById('resetBtn').addEventListener('click', ()=>{ if(state.currentLevel) loadLevel(state.currentLevel.id); });
+
+    // sprite url UI
+    document.getElementById('applySprite').addEventListener('click', ()=>{ const url = document.getElementById('spriteUrl').value.trim(); if(url){ spriteImg.src = url; PLAYER_SPRITE_URL = url; showMessage('Applied sprite URL — loading...'); } });
+    document.getElementById('resetSprite').addEventListener('click', ()=>{ spriteImg.src = PLAYER_SPRITE_URL; showMessage('Reset to default sprite (may be placeholder).'); });
 
     // ------------------------
     // Collision helpers
     // ------------------------
-    function rectsIntersect(a,b){return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y}
+    function rectsIntersect(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
 
     // ------------------------
-    // Game loop
+    // Animation utilities
     // ------------------------
-    function update(){
-      if(!state.playing || !state.currentLevel) return;
-      const lvl = state.currentLevel;
+    function setAnim(stateName){ if(player.anim.state === stateName) return; player.anim.state = stateName; player.anim.frame = 0; player.anim.frameTimer = 0; }
+    function tickAnim(dt){ const cfg = SPRITE_FRAME; const st = player.anim.state; const count = cfg.counts[st] || 1; player.anim.frameTimer += dt; const interval = 1000 / player.anim.frameRate; if(player.anim.frameTimer >= interval){ player.anim.frameTimer = 0; player.anim.frame = (player.anim.frame + 1) % count; } }
 
-      // apply gravity
-      player.vy += 0.8;
-      // horizontal input
-      const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
-      const right = keys['ArrowRight'] || keys['d'] || keys['D'];
-      const down = keys['ArrowDown'] || keys['s'] || keys['S'];
-
-      // rolling mechanic
-      player.rolling = down && player.onGround;
-      const accel = player.rolling ? player.acc * 1.3 : player.acc;
-      const friction = player.rolling ? 0.95 : 0.85;
-
+    // ------------------------
+    // Update + physics
+    // ------------------------
+    function update(){ if(!state.playing || !state.currentLevel) return; const lvl = state.currentLevel;
+      player.vy += 0.8; const left = keys['ArrowLeft']||keys['a']||keys['A']; const right = keys['ArrowRight']||keys['d']||keys['D']; const down = keys['ArrowDown']||keys['s']||keys['S'];
+      player.rolling = down && player.onGround; const accel = player.rolling ? player.acc*1.3 : player.acc; const friction = player.rolling ? 0.95 : 0.85;
       if(left){ player.vx -= accel; }
       if(right){ player.vx += accel; }
       if(!left && !right){ player.vx *= friction; }
       if(Math.abs(player.vx) > player.maxSpeed) player.vx = Math.sign(player.vx) * player.maxSpeed;
-
-      // jump
-      if((keys[' '] || keys['Spacebar'] || keys['Space']) && player.onGround){ player.vy = -14; player.onGround=false; }
-
-      // apply velocities
-      player.x += player.vx;
-      player.y += player.vy;
-
-      // simple world bounds and floor
-      if(player.y > canvas.height){ // fell off
-        // reset to start of level
-        player.x = 80; player.y = 0; player.vx=0; player.vy=0; player.rings = Math.max(0, player.rings-5);
-      }
-
-      // collisions with platforms
+      if((keys[' ']||keys['Spacebar']||keys['Space']) && player.onGround){ player.vy = -14; player.onGround=false; }
+      player.x += player.vx; player.y += player.vy;
+      if(player.y > canvas.height){ player.x=80; player.y=0; player.vx=0; player.vy=0; player.rings = Math.max(0, player.rings-5); }
       player.onGround = false;
-      lvl.platforms.forEach(p=>{
-        const plat = {x:p.x - state.offsetX, y:p.y, w:p.w, h:p.h};
-        // simple AABB
-        if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, plat)){
-          // collision from above
-          if(player.vy > 0 && player.y + player.h - player.vy <= plat.y + 4){
-            player.y = plat.y - player.h; player.vy = 0; player.onGround = true;
-          } else {
-            // horizontal pushback
-            if(player.x < plat.x) player.x = plat.x - player.w;
-            else player.x = plat.x + plat.w;
-            player.vx *= -0.2;
-          }
+      lvl.platforms.forEach(p=>{ const plat = {x:p.x - state.offsetX, y:p.y, w:p.w, h:p.h}; if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, plat)){
+          if(player.vy > 0 && player.y + player.h - player.vy <= plat.y + 4){ player.y = plat.y - player.h; player.vy = 0; player.onGround = true; }
+          else { if(player.x < plat.x) player.x = plat.x - player.w; else player.x = plat.x + plat.w; player.vx *= -0.2; }
         }
       });
-
-      // hazards
-      lvl.hazards.forEach(h=>{
-        const hazard = {x:h.x - state.offsetX, y:h.y, w:h.w, h:h.h};
-        if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, hazard)){
-          // simple hazard reaction
-          player.x = 80; player.y = 0; player.vx = 0; player.vy = 0; player.rings = Math.max(0, player.rings-10);
-        }
-      });
-
-      // portal (level end)
-      const portal = {x: lvl.portal.x - state.offsetX, y: lvl.portal.y, w: lvl.portal.w, h: lvl.portal.h};
-      if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, portal)){
-        // go to next level if exists
-        const idx = LEVELS.findIndex(x=>x.id===lvl.id);
-        if(idx < LEVELS.length - 1){ loadLevel(LEVELS[idx+1].id); } else { // finished all
-          state.playing = false; showMessage('You escaped the dream! Congratulations.');
-        }
+      lvl.hazards.forEach(h=>{ const hazard = {x:h.x - state.offsetX, y:h.y, w:h.w, h:h.h}; if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, hazard)){ player.x=80; player.y=0; player.vx=0; player.vy=0; player.rings = Math.max(0, player.rings-10); } });
+      const portal = {x: lvl.portal.x - state.offsetX, y: lvl.portal.y, w: lvl.portal.w, h: lvl.portal.h}; if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, portal)){
+        const idx = LEVELS.findIndex(x=>x.id===lvl.id); if(idx < LEVELS.length -1){ loadLevel(LEVELS[idx+1].id); } else { state.playing = false; showMessage('You escaped the dream! Congratulations.'); }
       }
-
-      // update camera offset to follow player
-      const centerX = canvas.width/2;
-      state.offsetX = Math.max(0, player.x - centerX + 100);
-
+      const centerX = canvas.width/2; state.offsetX = Math.max(0, player.x - centerX + 100);
       document.getElementById('hudRings').textContent = player.rings;
-    }
 
-    function draw(){
-      // clear
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // choose animation state
+      if(!player.onGround) setAnim('jump');
+      else if(player.rolling) setAnim('roll');
+      else if(Math.abs(player.vx) > 1) setAnim('run');
+      else setAnim('idle');
 
-      if(state.currentLevel){
-        const lvl = state.currentLevel;
-        // background
-        ctx.fillStyle = lvl.bgColor || '#111';
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-
-        // optional background image load (placeholder support)
-        if(lvl.backgroundImage){
-          const img = new Image(); img.src = lvl.backgroundImage; img.onload = ()=>{ ctx.drawImage(img, -state.offsetX*0.5, 0, canvas.width*2, canvas.height); }
-        }
-
-        // parallax and decorative dreamFX
-        if(state.dreamFX){
-          ctx.globalAlpha = 0.15; ctx.fillStyle = '#fff';
-          for(let i=0;i<30;i++){ ctx.fillRect((i*47 - (state.offsetX*0.2))%canvas.width, (i*83)%canvas.height, 6,6); }
-          ctx.globalAlpha = 1;
-        }
-
-        // draw platforms
-        lvl.platforms.forEach(p=>{
-          const x = p.x - state.offsetX; const y = p.y; ctx.fillStyle = '#222'; ctx.fillRect(x,y,p.w,p.h);
-          ctx.strokeStyle = '#333'; ctx.strokeRect(x,y,p.w,p.h);
-        });
-
-        // hazards
-        lvl.hazards.forEach(h=>{
-          const x = h.x - state.offsetX; const y = h.y; ctx.fillStyle = h.type==='lava'?'#ff4d4d':(h.type==='acid'?'#66ffcc':'#bbbbbb');
-          ctx.fillRect(x,y,h.w,h.h);
-        });
-
-        // portal
-        const portal = lvl.portal; const px = portal.x - state.offsetX;
-        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(px + portal.w/2, portal.y + portal.h/2, portal.w/2, 0, Math.PI*2); ctx.fill();
-
-        // draw player (simple rounded square)
-        ctx.fillStyle = '#ff7a18'; ctx.fillRect(player.x - state.offsetX, player.y, player.w, player.h);
-        ctx.strokeStyle = '#000'; ctx.strokeRect(player.x - state.offsetX, player.y, player.w, player.h);
-
-        // small shadows
-        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(player.x - state.offsetX, player.y + player.h, player.w, 6);
-
-      } else {
-        // idle screen
-        ctx.fillStyle = '#09102b'; ctx.fillRect(0,0,canvas.width,canvas.height);
-      }
+      // advance animation
+      tickAnim(16);
     }
 
     // ------------------------
-    // Message overlay
+    // Drawing (including sprite rendering)
     // ------------------------
-    const overlay = document.getElementById('overlay'), overlayBox = document.getElementById('overlayBox');
-    function showMessage(text, timeout=3000){ overlayBox.textContent = text; overlay.style.display='flex'; setTimeout(()=>{ overlay.style.display='none'; }, timeout); }
+    function draw(){ ctx.clearRect(0,0,canvas.width,canvas.height); if(state.currentLevel){ const lvl = state.currentLevel; ctx.fillStyle = lvl.bgColor || '#111'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(state.dreamFX){ ctx.globalAlpha = 0.12; ctx.fillStyle = '#fff'; for(let i=0;i<25;i++){ ctx.fillRect((i*53 - (state.offsetX*0.2))%canvas.width, (i*77)%canvas.height, 4,4); } ctx.globalAlpha = 1; }
+        lvl.platforms.forEach(p=>{ const x = p.x - state.offsetX; ctx.fillStyle = '#222'; ctx.fillRect(x,p.y,p.w,p.h); ctx.strokeStyle='#333'; ctx.strokeRect(x,p.y,p.w,p.h); });
+        lvl.hazards.forEach(h=>{ const x = h.x - state.offsetX; ctx.fillStyle = h.type==='lava'?'#ff4d4d':(h.type==='acid'?'#66ffcc':'#bbbbbb'); ctx.fillRect(x,h.y,h.w,h.h); });
+        const portal = lvl.portal; const px = portal.x - state.offsetX; ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(px + portal.w/2, portal.y + portal.h/2, portal.w/2, 0, Math.PI*2); ctx.fill();
+        // draw player sprite
+        const drawX = player.x - state.offsetX; const drawY = player.y;
+        if(spriteLoaded){ drawSpriteAt(drawX,drawY); } else { drawFallbackSonic(drawX,drawY); }
+        ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(drawX,player.y + player.h, player.w, 6);
+      } else { ctx.fillStyle='#09102b'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+    }
+
+    function drawSpriteAt(x,y){ const cfg = SPRITE_FRAME; const st = player.anim.state; const row = cfg.rows[st]; const count = cfg.counts[st] || 1; const frame = player.anim.frame % count; const sx = frame * cfg.frameW; const sy = row * cfg.frameH; const dw = player.w * (cfg.frameW/64); const dh = player.h * (cfg.frameH/64); ctx.save(); // flip if moving left
+      if(player.vx < -0.5){ ctx.translate(x + player.w/2, 0); ctx.scale(-1,1); ctx.translate(-(x + player.w/2), 0); }
+      // nearest-neighbor style for pixel art when scaled
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(spriteImg, sx, sy, cfg.frameW, cfg.frameH, x, y, player.w, player.h);
+      ctx.restore(); ctx.imageSmoothingEnabled = true; }
+
+    function drawFallbackSonic(x,y){ // draw a quick Genesis-style Sonic using shapes (fallback)
+      ctx.save(); ctx.scale(1,1);
+      // body
+      ctx.fillStyle='#0b47a1'; ctx.beginPath(); ctx.ellipse(x+20,y+24,14,14,0,0,Math.PI*2); ctx.fill();
+      // belly
+      ctx.fillStyle='#ffd9b3'; ctx.beginPath(); ctx.ellipse(x+20,y+30,8,8,0,0,Math.PI*2); ctx.fill();
+      // eye
+      ctx.fillStyle='#fff'; ctx.fillRect(x+24,y+18,6,6);
+      ctx.fillStyle='#000'; ctx.fillRect(x+26,y+20,3,3);
+      // spikes
+      ctx.fillStyle='#0b47a1'; ctx.beginPath(); ctx.moveTo(x+6,y+18); ctx.lineTo(x-4,y+12); ctx.lineTo(x+6,y+24); ctx.fill();
+      ctx.restore(); }
 
     // ------------------------
     // Main loop
@@ -355,17 +240,15 @@
     tick();
 
     // ------------------------
-    // Helpers & misc
+    // Utils
     // ------------------------
+    const overlay = document.getElementById('overlay'), overlayBox = document.getElementById('overlayBox'); function showMessage(text, timeout=2000){ overlayBox.textContent = text; overlay.style.display='flex'; setTimeout(()=>{ overlay.style.display='none'; }, timeout); }
     function togglePause(){ state.playing = !state.playing; showMessage(state.playing ? 'Resumed' : 'Paused'); }
 
-    // small instructions for devs
-    console.log('Overworld Memory — Prototype loaded. Use arrow keys/A-D to move, space to jump.');
+    // developer helpers
+    console.log('Genesis-style Sonic prototype loaded. If the default sprite fails to load, paste a CORS-enabled sprite-sheet URL and click Apply.');
 
-    // keyboard shortuct to take screenshot (dev)
-    window.addEventListener('keydown', e=>{ if(e.key==='F3'){ const data = canvas.toDataURL(); window.open(data, '_blank'); } });
-
-    // expose some functions for debugging
+    // expose for debugging
     window.loadLevel = loadLevel; window.LEVELS = LEVELS;
   </script>
 </body>
