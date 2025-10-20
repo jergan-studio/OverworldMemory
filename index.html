@@ -3,211 +3,370 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Overworld Memory — Sonic Fangame (Prototype)</title>
+  <title>Overworld Memory — Full Prototype</title>
   <style>
-    :root{--bg:#0f1226;--card:#11131f;--accent:#ff7a18;--muted:#9aa0c7}
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
-    body{background:radial-gradient(1200px 600px at 10% 10%, rgba(255,122,24,0.08), transparent),
-                 radial-gradient(1200px 600px at 90% 90%, rgba(63,81,181,0.06), transparent),
-                 var(--bg);color:#e6e9ff;overflow:hidden}
-    canvas{display:block;position:absolute;inset:0;width:100%;height:100%;background:transparent;z-index:0}
-    .container{position:relative;z-index:2;max-width:980px;margin:48px auto;padding:24px;background:rgba(0,0,0,0.3);border-radius:12px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:16px}
-    h1{font-size:28px;margin:0}
-    p.lead{margin:6px 0 0;color:var(--muted)}
-    .dream-toggle{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:12px;color:var(--muted);cursor:pointer}
-    audio{margin-top:12px;width:100%}
-
-    .level-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:22px}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:14px;border-radius:12px;box-shadow:0 6px 22px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
-    .card h3{margin:0 0 6px}
-    .card p{margin:0 0 10px;color:var(--muted);font-size:14px}
-    .btn{display:inline-block;padding:8px 12px;border-radius:10px;background:var(--accent);color:#111;border:none;cursor:pointer;font-weight:600}
-    .small{font-size:13px;padding:6px 8px;border-radius:8px}
-    footer{margin-top:28px;color:var(--muted);font-size:13px}
-
-    .dreamy{filter:blur(0.6px) saturate(1.1);transform:scale(1.01)}
-    .overlay{position:fixed;inset:0;pointer-events:none;mix-blend-mode:screen}
-
-    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(2,6,23,0.6), rgba(2,6,23,0.85));z-index:10}
-    .modal.open{display:flex}
-    .modal .box{background:var(--card);padding:18px;border-radius:12px;max-width:720px;width:92%;box-shadow:0 12px 40px rgba(2,6,23,0.7)}
-    .modal .box h2{margin:0 0 8px}
-    .level-meta{display:flex;gap:12px;flex-wrap:wrap}
-    code.k{background:rgba(255,255,255,0.03);padding:6px;border-radius:8px;color:var(--muted)}
-
-    @media (max-width:520px){h1{font-size:20px}}
+    :root{--bg:#0f1226;--card:#0f1226aa;--accent:#ff7a18;--muted:#b7bddf}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6e9ff}
+    #gameWrap{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center}
+    canvas{background:transparent;display:block;max-width:100%;height:100vh}
+    .ui{position:fixed;z-index:40;left:20px;top:20px;min-width:320px;max-width:420px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+    h1{margin:0;font-size:18px}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .levels{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .levBtn{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);cursor:pointer;font-weight:600}
+    .controls{display:flex;gap:8px;margin-top:8px}
+    .small{font-size:12px;padding:6px 8px;border-radius:8px}
+    .audioRow{margin-top:10px}
+    .hud{position:fixed;right:20px;top:20px;color:var(--muted);z-index:40;text-align:right}
+    .overlayMsg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50;pointer-events:none}
+    .messageBox{background:rgba(2,6,23,0.8);padding:18px;border-radius:12px;color:#fff;border:1px solid rgba(255,255,255,0.04)}
+    .mobileButtons{position:fixed;left:16px;bottom:20px;z-index:40;display:flex;gap:8px}
+    .touchBtn{width:64px;height:64px;border-radius:12px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;font-weight:700}
+    footer{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;color:var(--muted);font-size:12px}
+    @media (max-width:640px){.ui{left:10px;right:10px;top:10px;min-width:auto}}
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <div class="overlay"></div>
-  <div class="container">
-    <header>
-      <div>
-        <h1>Overworld Memory</h1>
-        <p class="lead">A Sonic-inspired fangame prototype — you're trapped in an endless dream by Dr. Eggman. Escape by clearing the real levels and confronting the source.</p>
-      </div>
-      <div>
-        <button id="toggleDream" class="dream-toggle">Toggle Dream FX</button>
-      </div>
-    </header>
-
-    <section>
-      <h2 style="margin-top:24px">Levels</h2>
-      <div class="level-grid" id="levels">
-        <article class="card" data-id="orange-memory">
-          <h3>Orange Memory</h3>
-          <p>Bright, looping platforms with quick tempo — test your momentum and timing.</p>
-          <div class="level-meta">
-            <button class="btn" onclick="openPreview('Orange Memory','A bright dreamscape of looping orange platforms and springboards. Hazards: moving saw-arms, memory shards.')">Preview</button>
-            <button class="small" onclick="selectLevel('Orange Memory')">Select</button>
-          </div>
-        </article>
-
-        <article class="card" data-id="acid-moonlit">
-          <h3>Acid Moonlit</h3>
-          <p>Misty platforms over acidic pools — avoid falling and ride the moonlit currents.</p>
-          <div class="level-meta">
-            <button class="btn" onclick="openPreview('Acid Moonlit','A dream stage that glows pale blue under a moon. Platforms drift; acid pools rise periodically.')">Preview</button>
-            <button class="small" onclick="selectLevel('Acid Moonlit')">Select</button>
-          </div>
-        </article>
-
-        <article class="card" data-id="acid-volcano">
-          <h3>Acid Volcano</h3>
-          <p>Volcanic tunnels with acidic steam and moving platforms — extreme hazard choreography.</p>
-          <div class="level-meta">
-            <button class="btn" onclick="openPreview('Acid Volcano','Lava-like acid flows inside a volcano, collapsing bridges and geysers of molten acid.')">Preview</button>
-            <button class="small" onclick="selectLevel('Acid Volcano')">Select</button>
-          </div>
-        </article>
-
-        <article class="card" data-id="escape-1">
-          <h3>Escape</h3>
-          <p>Sequences that test everything you've learned — from platforming to puzzle shortcuts.</p>
-          <div class="level-meta">
-            <button class="btn" onclick="openPreview('Escape','A gauntlet of platforming and puzzle sequences that opens a path toward waking.')">Preview</button>
-            <button class="small" onclick="selectLevel('Escape')">Select</button>
-          </div>
-        </article>
-
-        <article class="card" data-id="escape-2">
-          <h3>Escape (Final)</h3>
-          <p>The final dream gauntlet — timed sections and an Eggman machine looming in the background.</p>
-          <div class="level-meta">
-            <button class="btn" onclick="openPreview('Escape (Final)','The final tense sequence before the real world. Eggman’s device pulses as platforms vanish.')">Preview</button>
-            <button class="small" onclick="selectLevel('Escape (Final)')">Select</button>
-          </div>
-        </article>
-
-        <article class="card" data-id="real-world">
-          <h3>The Real World</h3>
-          <p>Waking stage — free of Eggman's dream interference, but one last confrontation awaits.</p>
-          <div class="level-meta">
-            <button class="btn" onclick="openPreview('The Real World','The world outside the dream — familiar zones with a final Eggman showdown.')">Preview</button>
-            <button class="small" onclick="selectLevel('The Real World')">Select</button>
-          </div>
-        </article>
-
-      </div>
-    </section>
-
-    <section style="margin-top:28px">
-      <h2>Soundtrack & SFX</h2>
-      <audio id="bgm" controls loop>
-        <source src="https://actions.google.com/sounds/v1/ambiences/space_dreamscape.ogg" type="audio/ogg">
-        Your browser does not support the audio element.
-      </audio>
-    </section>
-
-    <footer>
-      <div>Prototype created for design & level listing. This is not an official Sonic game. Use this HTML as a starting point for building levels, adding audio, and connecting to your engine.</div>
-    </footer>
+  <div id="gameWrap">
+    <canvas id="gameCanvas"></canvas>
   </div>
 
-  <div id="modal" class="modal" role="dialog" aria-hidden="true">
-    <div class="box">
-      <button style="float:right;padding:6px 10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);" onclick="closeModal()">Close</button>
-      <h2 id="modalTitle">Level Preview</h2>
-      <p id="modalDesc" style="margin-top:6px;color:var(--muted)"></p>
-      <div style="margin-top:12px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" onclick="mockPlay()">Play (Mock)</button>
-          <button class="small" onclick="markFavorite()">Mark Favorite</button>
-        </div>
-      </div>
+  <div class="ui" id="menu">
+    <h1>Overworld Memory — Full Prototype</h1>
+    <p class="lead">You're trapped in a dream created by Dr. Eggman. Use ← → or A/D to move, Space to jump. Hold Down/↓ to roll (increases momentum).</p>
+
+    <div style="margin-top:10px">
+      <strong>Levels</strong>
+      <div class="levels" id="levelsList"></div>
+    </div>
+
+    <div style="margin-top:8px" class="audioRow">
+      <label for="bgm">BGM:</label>
+      <audio id="bgm" controls loop>
+        <source src="https://actions.google.com/sounds/v1/ambiences/space_dreamscape.ogg" type="audio/ogg">
+      </audio>
+    </div>
+
+    <div class="controls">
+      <button class="levBtn" id="startBtn">Start Selected</button>
+      <button class="levBtn small" id="toggleFx">Toggle Dream FX</button>
+      <button class="levBtn small" id="resetBtn">Reset Level</button>
     </div>
   </div>
 
+  <div class="hud" id="hud">Level: <span id="hudLevel">—</span><br>Rings: <span id="hudRings">0</span></div>
+
+  <div class="overlayMsg" id="overlay" style="display:none"><div class="messageBox" id="overlayBox">Paused</div></div>
+
+  <div class="mobileButtons" id="mobileBtns" style="display:none">
+    <div class="touchBtn" id="leftBtn">◀</div>
+    <div class="touchBtn" id="rightBtn">▶</div>
+    <div class="touchBtn" id="jumpBtn">⭣</div>
+  </div>
+
+  <footer>Prototype — not an official Sonic game. Use for testing levels and mechanics.</footer>
+
   <script>
-    const body = document.body;
-    const toggle = document.getElementById('toggleDream');
-    const modal = document.getElementById('modal');
-    const canvas = document.getElementById('game');
+    // ------------------------
+    // Level data (JSON-style objects)
+    // ------------------------
+    const LEVELS = [
+      {
+        id: 'orange-memory', title: 'Orange Memory', theme: 'orange', bgColor: '#ffeddc',
+        backgroundImage: null,
+        platforms: [
+          {x:0,y:420,w:800,h:60},
+          {x:220,y:340,w:140,h:20},
+          {x:420,y:280,w:120,h:20},
+          {x:620,y:220,w:100,h:20},
+          {x:820,y:340,w:140,h:20}
+        ],
+        hazards: [],
+        portal:{x:900,y:160,w:40,h:40}
+      },
+
+      {
+        id: 'acid-moonlit', title: 'Acid Moonlit', theme: 'blue', bgColor: '#dcefff',
+        backgroundImage: null,
+        platforms: [
+          {x:0,y:420,w:700,h:60},{x:360,y:320,w:120,h:20},{x:520,y:260,w:120,h:20},{x:760,y:320,w:180,h:20}
+        ],
+        hazards: [{x:140,y:460,w:120,h:20,type:'acid'}],
+        portal:{x:920,y:260,w:40,h:40}
+      },
+
+      {
+        id: 'acid-volcano', title: 'Acid Volcano', theme: 'red', bgColor: '#fff0e6',
+        backgroundImage: null,
+        platforms: [
+          {x:0,y:420,w:600,h:60},{x:320,y:340,w:120,h:20},{x:520,y:300,w:120,h:20},{x:720,y:260,w:120,h:20}
+        ],
+        hazards: [{x:680,y:460,w:160,h:20,type:'lava'},{x:420,y:460,w:120,h:20,type:'lava'}],
+        portal:{x:860,y:200,w:40,h:40}
+      },
+
+      {
+        id: 'escape', title: 'Escape', theme: 'purple', bgColor: '#f6e6ff',
+        backgroundImage: null,
+        platforms: [
+          {x:0,y:420,w:500,h:60},{x:540,y:360,w:120,h:20},{x:720,y:300,w:120,h:20},{x:900,y:240,w:120,h:20}
+        ],
+        hazards: [{x:200,y:440,w:120,h:20,type:'spikes'}],
+        portal:{x:1040,y:180,w:40,h:40}
+      },
+
+      {
+        id: 'escape-final', title: 'Escape (Final)', theme: 'storm', bgColor: '#eef6ff',
+        backgroundImage: null,
+        platforms: [
+          {x:0,y:420,w:360,h:60},{x:420,y:360,w:120,h:20},{x:600,y:300,w:100,h:20},{x:760,y:260,w:80,h:20}
+        ],
+        hazards: [{x:300,y:460,w:200,h:20,type:'moving',vx:1}],
+        portal:{x:920,y:220,w:64,h:64}
+      },
+
+      {
+        id: 'real-world', title: 'The Real World', theme: 'real', bgColor: '#eafff5',
+        backgroundImage: null,
+        platforms: [
+          {x:0,y:420,w:1200,h:60}
+        ],
+        hazards: [],
+        portal:{x:1100,y:200,w:80,h:80}
+      }
+    ];
+
+    // ------------------------
+    // Canvas + high-level state
+    // ------------------------
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    let keys = {}, player={x:100,y:100,vx:0,vy:0,size:32,onGround:false};
+    let scale = 1;
+    function resize(){
+      canvas.width = Math.min(window.innerWidth, 1280);
+      canvas.height = window.innerHeight;
+      scale = canvas.height / 720; // use 720p baseline
+    }
+    window.addEventListener('resize', resize); resize();
 
-    function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
-    resize();window.addEventListener('resize',resize);
+    let state = {
+      currentLevel: null,
+      offsetX: 0,
+      playing: false,
+      dreamFX: false,
+    };
 
-    function gameLoop(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      // background gradient
-      const grad = ctx.createLinearGradient(0,0,0,canvas.height);
-      grad.addColorStop(0,'#1e2147');grad.addColorStop(1,'#0a0b1f');
-      ctx.fillStyle=grad;ctx.fillRect(0,0,canvas.width,canvas.height);
+    // ------------------------
+    // Player — momentum-based
+    // ------------------------
+    const player = {
+      x: 80, y: 0, w: 40, h: 40,
+      vx:0, vy:0,
+      acc: 0.8, maxSpeed: 12, friction: 0.85, onGround:false, rolling:false,
+      rings:0
+    };
 
-      // simple floor
-      ctx.fillStyle='#333c60';
-      ctx.fillRect(0,canvas.height-60,canvas.width,60);
+    // input
+    const keys = {};
+    window.addEventListener('keydown', e=>{keys[e.key]=true; if(e.key==='p'){togglePause()} });
+    window.addEventListener('keyup', e=>{keys[e.key]=false});
 
-      // player physics
-      player.vy += 0.6; // gravity
+    // mobile touch buttons
+    const mobileBtns = document.getElementById('mobileBtns');
+    function detectMobile(){ if(/Mobi|Android/i.test(navigator.userAgent)) mobileBtns.style.display='flex'; }
+    detectMobile();
+    document.getElementById('leftBtn').addEventListener('touchstart', ()=>keys['ArrowLeft']=true);document.getElementById('leftBtn').addEventListener('touchend', ()=>keys['ArrowLeft']=false);
+    document.getElementById('rightBtn').addEventListener('touchstart', ()=>keys['ArrowRight']=true);document.getElementById('rightBtn').addEventListener('touchend', ()=>keys['ArrowRight']=false);
+    document.getElementById('jumpBtn').addEventListener('touchstart', ()=>{ if(player.onGround) player.vy=-14;});
+
+    // ------------------------
+    // Level loader & renderer
+    // ------------------------
+    function loadLevel(id){
+      const lvl = LEVELS.find(l=>l.id===id);
+      if(!lvl) return;
+      state.currentLevel = JSON.parse(JSON.stringify(lvl)); // clone
+      player.x = 80; player.y = 0; player.vx = 0; player.vy = 0; player.rings = 0;
+      state.offsetX = 0; state.playing = true; document.getElementById('hudLevel').textContent = lvl.title;
+    }
+
+    // UI populate
+    const levelsList = document.getElementById('levelsList');
+    LEVELS.forEach(l=>{
+      const btn = document.createElement('button'); btn.className='levBtn'; btn.textContent = l.title; btn.onclick=()=>selectLevel(l.id); levelsList.appendChild(btn);
+    });
+    function selectLevel(id){ window.selectedLevel = id; document.getElementById('startBtn').textContent = 'Start: ' + LEVELS.find(x=>x.id===id).title; }
+    // default select first
+    selectLevel(LEVELS[0].id);
+
+    document.getElementById('startBtn').addEventListener('click', ()=>{
+      if(window.selectedLevel) loadLevel(window.selectedLevel);
+    });
+    document.getElementById('toggleFx').addEventListener('click', ()=>{state.dreamFX = !state.dreamFX;document.body.style.filter = state.dreamFX ? 'saturate(1.2) blur(0.6px)' : 'none';});
+    document.getElementById('resetBtn').addEventListener('click', ()=>{ if(state.currentLevel) loadLevel(state.currentLevel.id); });
+
+    // ------------------------
+    // Collision helpers
+    // ------------------------
+    function rectsIntersect(a,b){return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y}
+
+    // ------------------------
+    // Game loop
+    // ------------------------
+    function update(){
+      if(!state.playing || !state.currentLevel) return;
+      const lvl = state.currentLevel;
+
+      // apply gravity
+      player.vy += 0.8;
+      // horizontal input
+      const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
+      const right = keys['ArrowRight'] || keys['d'] || keys['D'];
+      const down = keys['ArrowDown'] || keys['s'] || keys['S'];
+
+      // rolling mechanic
+      player.rolling = down && player.onGround;
+      const accel = player.rolling ? player.acc * 1.3 : player.acc;
+      const friction = player.rolling ? 0.95 : 0.85;
+
+      if(left){ player.vx -= accel; }
+      if(right){ player.vx += accel; }
+      if(!left && !right){ player.vx *= friction; }
+      if(Math.abs(player.vx) > player.maxSpeed) player.vx = Math.sign(player.vx) * player.maxSpeed;
+
+      // jump
+      if((keys[' '] || keys['Spacebar'] || keys['Space']) && player.onGround){ player.vy = -14; player.onGround=false; }
+
+      // apply velocities
       player.x += player.vx;
       player.y += player.vy;
-      if(player.y + player.size > canvas.height-60){player.y = canvas.height-60-player.size;player.vy=0;player.onGround=true;}
-      else player.onGround=false;
 
-      // draw player
-      ctx.fillStyle='#ff7a18';
-      ctx.fillRect(player.x,player.y,player.size,player.size);
+      // simple world bounds and floor
+      if(player.y > canvas.height){ // fell off
+        // reset to start of level
+        player.x = 80; player.y = 0; player.vx=0; player.vy=0; player.rings = Math.max(0, player.rings-5);
+      }
 
-      requestAnimationFrame(gameLoop);
+      // collisions with platforms
+      player.onGround = false;
+      lvl.platforms.forEach(p=>{
+        const plat = {x:p.x - state.offsetX, y:p.y, w:p.w, h:p.h};
+        // simple AABB
+        if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, plat)){
+          // collision from above
+          if(player.vy > 0 && player.y + player.h - player.vy <= plat.y + 4){
+            player.y = plat.y - player.h; player.vy = 0; player.onGround = true;
+          } else {
+            // horizontal pushback
+            if(player.x < plat.x) player.x = plat.x - player.w;
+            else player.x = plat.x + plat.w;
+            player.vx *= -0.2;
+          }
+        }
+      });
+
+      // hazards
+      lvl.hazards.forEach(h=>{
+        const hazard = {x:h.x - state.offsetX, y:h.y, w:h.w, h:h.h};
+        if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, hazard)){
+          // simple hazard reaction
+          player.x = 80; player.y = 0; player.vx = 0; player.vy = 0; player.rings = Math.max(0, player.rings-10);
+        }
+      });
+
+      // portal (level end)
+      const portal = {x: lvl.portal.x - state.offsetX, y: lvl.portal.y, w: lvl.portal.w, h: lvl.portal.h};
+      if(rectsIntersect({x:player.x,y:player.y,w:player.w,h:player.h}, portal)){
+        // go to next level if exists
+        const idx = LEVELS.findIndex(x=>x.id===lvl.id);
+        if(idx < LEVELS.length - 1){ loadLevel(LEVELS[idx+1].id); } else { // finished all
+          state.playing = false; showMessage('You escaped the dream! Congratulations.');
+        }
+      }
+
+      // update camera offset to follow player
+      const centerX = canvas.width/2;
+      state.offsetX = Math.max(0, player.x - centerX + 100);
+
+      document.getElementById('hudRings').textContent = player.rings;
     }
-    requestAnimationFrame(gameLoop);
 
-    window.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key===' '&&player.onGround){player.vy=-12;}});
-    window.addEventListener('keyup',e=>{keys[e.key]=false;});
+    function draw(){
+      // clear
+      ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    function handleInput(){
-      if(keys['ArrowLeft']) player.vx=-5;
-      else if(keys['ArrowRight']) player.vx=5;
-      else player.vx=0;
-      requestAnimationFrame(handleInput);
+      if(state.currentLevel){
+        const lvl = state.currentLevel;
+        // background
+        ctx.fillStyle = lvl.bgColor || '#111';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        // optional background image load (placeholder support)
+        if(lvl.backgroundImage){
+          const img = new Image(); img.src = lvl.backgroundImage; img.onload = ()=>{ ctx.drawImage(img, -state.offsetX*0.5, 0, canvas.width*2, canvas.height); }
+        }
+
+        // parallax and decorative dreamFX
+        if(state.dreamFX){
+          ctx.globalAlpha = 0.15; ctx.fillStyle = '#fff';
+          for(let i=0;i<30;i++){ ctx.fillRect((i*47 - (state.offsetX*0.2))%canvas.width, (i*83)%canvas.height, 6,6); }
+          ctx.globalAlpha = 1;
+        }
+
+        // draw platforms
+        lvl.platforms.forEach(p=>{
+          const x = p.x - state.offsetX; const y = p.y; ctx.fillStyle = '#222'; ctx.fillRect(x,y,p.w,p.h);
+          ctx.strokeStyle = '#333'; ctx.strokeRect(x,y,p.w,p.h);
+        });
+
+        // hazards
+        lvl.hazards.forEach(h=>{
+          const x = h.x - state.offsetX; const y = h.y; ctx.fillStyle = h.type==='lava'?'#ff4d4d':(h.type==='acid'?'#66ffcc':'#bbbbbb');
+          ctx.fillRect(x,y,h.w,h.h);
+        });
+
+        // portal
+        const portal = lvl.portal; const px = portal.x - state.offsetX;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(px + portal.w/2, portal.y + portal.h/2, portal.w/2, 0, Math.PI*2); ctx.fill();
+
+        // draw player (simple rounded square)
+        ctx.fillStyle = '#ff7a18'; ctx.fillRect(player.x - state.offsetX, player.y, player.w, player.h);
+        ctx.strokeStyle = '#000'; ctx.strokeRect(player.x - state.offsetX, player.y, player.w, player.h);
+
+        // small shadows
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(player.x - state.offsetX, player.y + player.h, player.w, 6);
+
+      } else {
+        // idle screen
+        ctx.fillStyle = '#09102b'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      }
     }
-    handleInput();
 
-    toggle.addEventListener('click', ()=>{
-      body.classList.toggle('dreamy');
-      toggle.textContent = body.classList.contains('dreamy') ? 'Dream FX: ON' : 'Toggle Dream FX';
-    });
+    // ------------------------
+    // Message overlay
+    // ------------------------
+    const overlay = document.getElementById('overlay'), overlayBox = document.getElementById('overlayBox');
+    function showMessage(text, timeout=3000){ overlayBox.textContent = text; overlay.style.display='flex'; setTimeout(()=>{ overlay.style.display='none'; }, timeout); }
 
-    function openPreview(title,desc){
-      document.getElementById('modalTitle').textContent = title;
-      document.getElementById('modalDesc').textContent = desc;
-      modal.classList.add('open');
-      modal.setAttribute('aria-hidden','false');
-    }
-    function closeModal(){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');}
+    // ------------------------
+    // Main loop
+    // ------------------------
+    function tick(){ update(); draw(); requestAnimationFrame(tick); }
+    tick();
 
-    function selectLevel(name){alert('Selected level: '+name+'\n\nIn a real build this would load the level data and transition into the engine.');}
-    function mockPlay(){alert('Starting mock play... (prototype)');}
-    function markFavorite(){alert('Marked as favorite — saved locally.');}
+    // ------------------------
+    // Helpers & misc
+    // ------------------------
+    function togglePause(){ state.playing = !state.playing; showMessage(state.playing ? 'Resumed' : 'Paused'); }
 
-    window.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeModal();if(e.key.toLowerCase()==='d'){body.classList.toggle('dreamy');toggle.textContent=body.classList.contains('dreamy')?'Dream FX: ON':'Toggle Dream FX';}});
+    // small instructions for devs
+    console.log('Overworld Memory — Prototype loaded. Use arrow keys/A-D to move, space to jump.');
 
-    document.addEventListener('DOMContentLoaded',()=>{const firstBtn=document.querySelector('.btn');if(firstBtn)firstBtn.focus();});
+    // keyboard shortuct to take screenshot (dev)
+    window.addEventListener('keydown', e=>{ if(e.key==='F3'){ const data = canvas.toDataURL(); window.open(data, '_blank'); } });
+
+    // expose some functions for debugging
+    window.loadLevel = loadLevel; window.LEVELS = LEVELS;
   </script>
 </body>
 </html>
